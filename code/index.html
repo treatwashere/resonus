@@ -1,0 +1,419 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Resonus - Music Player</title>
+<style>
+* { margin:0; padding:0; box-sizing:border-box; }
+
+body {
+  font-family: 'Segoe UI', system-ui, sans-serif;
+  background: #0d0d12;
+  color: #fff;
+  padding-bottom: 110px;
+  min-height: 100vh;
+}
+
+.header {
+  padding: 25px 20px;
+  background: linear-gradient(135deg, #1db954 0%, #1a6fd4 100%);
+}
+
+.logo { font-size: 2rem; font-weight: bold; margin-bottom: 15px; }
+
+.search-row { display: flex; gap: 10px; }
+
+#searchInput {
+  flex: 1;
+  padding: 12px 16px;
+  border: none;
+  border-radius: 25px;
+  font-size: 1rem;
+  background: rgba(255,255,255,0.95);
+  color: #111;
+}
+
+#searchInput:focus { outline: none; }
+
+#searchBtn {
+  padding: 12px 24px;
+  border: none;
+  border-radius: 25px;
+  background: #111;
+  color: #fff;
+  font-weight: bold;
+  cursor: pointer;
+}
+
+#searchBtn:hover { background: #333; }
+
+.tabs {
+  display: flex;
+  gap: 8px;
+  padding: 15px 20px 0;
+}
+
+.tab {
+  padding: 10px 20px;
+  background: #1a1a22;
+  border: none;
+  border-radius: 20px;
+  color: #888;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all .2s;
+}
+
+.tab.active { background: #1db954; color: #fff; }
+
+.results { padding: 20px; }
+
+.track {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 10px;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: background .2s;
+}
+
+.track:hover { background: #1a1a22; }
+.track.playing { background: #16301f; }
+
+.track img {
+  width: 55px;
+  height: 55px;
+  border-radius: 6px;
+  object-fit: cover;
+  flex-shrink: 0;
+}
+
+.track-info { flex: 1; min-width: 0; }
+
+.track-title {
+  font-weight: 600;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.track-artist {
+  font-size: .85rem;
+  color: #999;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.save-btn {
+  background: none;
+  border: none;
+  color: #1db954;
+  font-size: 1.4rem;
+  cursor: pointer;
+  padding: 5px;
+}
+
+.msg { text-align: center; color: #777; padding: 50px 20px; }
+
+/* PLAYER BAR */
+.player {
+  position: fixed;
+  bottom: 0; left: 0; right: 0;
+  background: #16161d;
+  border-top: 1px solid #2a2a35;
+  padding: 12px 20px;
+  z-index: 100;
+}
+
+.now-playing {
+  font-size: .9rem;
+  margin-bottom: 8px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  color: #ccc;
+}
+
+.controls {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.ctrl {
+  background: none;
+  border: none;
+  color: #fff;
+  font-size: 1.3rem;
+  cursor: pointer;
+  padding: 4px 8px;
+}
+
+.ctrl:hover { color: #1db954; }
+
+#playBtn { font-size: 1.8rem; }
+
+#seek { flex: 1; accent-color: #1db954; }
+
+.time { font-size: .75rem; color: #888; min-width: 40px; }
+
+#ytFrame {
+  position: fixed;
+  bottom: -400px;
+  width: 1px;
+  height: 1px;
+}
+</style>
+</head>
+<body>
+
+<div class="header">
+  <div class="logo">🎵 Resonus</div>
+  <div class="search-row">
+    <input type="text" id="searchInput" placeholder="Search for a song...">
+    <button id="searchBtn">Search</button>
+  </div>
+</div>
+
+<div class="tabs">
+  <button class="tab active" data-mode="jamendo">🎶 Jamendo</button>
+  <button class="tab" data-mode="youtube">📺 YouTube</button>
+  <button class="tab" data-mode="saved">💾 Saved</button>
+</div>
+
+<div class="results" id="results">
+  <div class="msg">Search for something to get started 🎵</div>
+</div>
+
+<div class="player">
+  <div class="now-playing" id="nowPlaying">Nothing playing</div>
+  <div class="controls">
+    <button class="ctrl" id="prevBtn">⏮</button>
+    <button class="ctrl" id="playBtn">▶️</button>
+    <button class="ctrl" id="nextBtn">⏭</button>
+    <span class="time" id="curTime">0:00</span>
+    <input type="range" id="seek" value="0" min="0" max="100">
+    <span class="time" id="durTime">0:00</span>
+  </div>
+</div>
+
+<div id="ytFrame"></div>
+<audio id="audio"></audio>
+
+<script src="https://www.youtube.com/iframe_api"></script>
+<script>
+const JAMENDO_KEY = 'PUT_YOUR_JAMENDO_KEY_HERE';
+const YOUTUBE_KEY = 'PUT_YOUR_YOUTUBE_KEY_HERE';
+
+const audio = document.getElementById('audio');
+const resultsEl = document.getElementById('results');
+const nowPlaying = document.getElementById('nowPlaying');
+const playBtn = document.getElementById('playBtn');
+const seek = document.getElementById('seek');
+const curTime = document.getElementById('curTime');
+const durTime = document.getElementById('durTime');
+
+let mode = 'jamendo';
+let tracks = [];
+let index = -1;
+let ytPlayer = null;
+let ytReady = false;
+let isPlaying = false;
+
+function onYouTubeIframeAPIReady() {
+  ytPlayer = new YT.Player('ytFrame', {
+    height: '1', width: '1', videoId: '',
+    playerVars: { autoplay: 0 },
+    events: {
+      onReady: () => { ytReady = true; },
+      onStateChange: e => {
+        if (e.data === YT.PlayerState.ENDED) next();
+        if (e.data === YT.PlayerState.PLAYING) { isPlaying = true; playBtn.textContent = '⏸'; }
+        if (e.data === YT.PlayerState.PAUSED) { isPlaying = false; playBtn.textContent = '▶️'; }
+      }
+    }
+  });
+}
+
+function fmt(s) {
+  if (!s || isNaN(s)) return '0:00';
+  const m = Math.floor(s / 60);
+  const sec = Math.floor(s % 60);
+  return m + ':' + (sec < 10 ? '0' : '') + sec;
+}
+
+function getSaved() {
+  try { return JSON.parse(localStorage.getItem('resonus_saved')) || []; }
+  catch { return []; }
+}
+
+function setSaved(list) {
+  localStorage.setItem('resonus_saved', JSON.stringify(list));
+}
+
+function render(list) {
+  tracks = list;
+  if (!list.length) {
+    resultsEl.innerHTML = '<div class="msg">Nothing found 🤔</div>';
+    return;
+  }
+  resultsEl.innerHTML = list.map((t, i) => `
+    <div class="track" data-i="${i}">
+      <img src="${t.art}" alt="">
+      <div class="track-info">
+        <div class="track-title">${t.title}</div>
+        <div class="track-artist">${t.artist}</div>
+      </div>
+      <button class="save-btn" data-save="${i}">${mode === 'saved' ? '✕' : '＋'}</button>
+    </div>
+  `).join('');
+}
+
+resultsEl.addEventListener('click', e => {
+  const saveBtn = e.target.closest('[data-save]');
+  if (saveBtn) {
+    const i = +saveBtn.dataset.save;
+    let saved = getSaved();
+    if (mode === 'saved') {
+      saved.splice(i, 1);
+      setSaved(saved);
+      render(saved);
+    } else {
+      if (!saved.some(s => s.id === tracks[i].id)) {
+        saved.push(tracks[i]);
+        setSaved(saved);
+      }
+      saveBtn.textContent = '✓';
+    }
+    return;
+  }
+  const row = e.target.closest('.track');
+  if (row) play(+row.dataset.i);
+});
+
+function play(i) {
+  if (i < 0 || i >= tracks.length) return;
+  index = i;
+  const t = tracks[i];
+  nowPlaying.textContent = t.title + ' — ' + t.artist;
+
+  document.querySelectorAll('.track').forEach((el, n) =>
+    el.classList.toggle('playing', n === i));
+
+  if (t.source === 'youtube') {
+    audio.pause();
+    if (ytReady) ytPlayer.loadVideoById(t.id);
+  } else {
+    if (ytReady) ytPlayer.stopVideo();
+    audio.src = t.url;
+    audio.play();
+  }
+}
+
+function next() { if (index + 1 < tracks.length) play(index + 1); }
+function prev() { if (index > 0) play(index - 1); }
+
+document.getElementById('nextBtn').onclick = next;
+document.getElementById('prevBtn').onclick = prev;
+
+playBtn.onclick = () => {
+  const t = tracks[index];
+  if (!t) return;
+  if (t.source === 'youtube') {
+    isPlaying ? ytPlayer.pauseVideo() : ytPlayer.playVideo();
+  } else {
+    audio.paused ? audio.play() : audio.pause();
+  }
+};
+
+audio.onplay = () => { isPlaying = true; playBtn.textContent = '⏸'; };
+audio.onpause = () => { isPlaying = false; playBtn.textContent = '▶️'; };
+audio.onended = next;
+
+setInterval(() => {
+  const t = tracks[index];
+  if (!t) return;
+  let cur = 0, dur = 0;
+  if (t.source === 'youtube' && ytReady && ytPlayer.getDuration) {
+    cur = ytPlayer.getCurrentTime() || 0;
+    dur = ytPlayer.getDuration() || 0;
+  } else {
+    cur = audio.currentTime || 0;
+    dur = audio.duration || 0;
+  }
+  curTime.textContent = fmt(cur);
+  durTime.textContent = fmt(dur);
+  if (dur) seek.value = (cur / dur) * 100;
+}, 500);
+
+seek.oninput = () => {
+  const t = tracks[index];
+  if (!t) return;
+  if (t.source === 'youtube' && ytReady) {
+    const d = ytPlayer.getDuration();
+    ytPlayer.seekTo(d * seek.value / 100, true);
+  } else if (audio.duration) {
+    audio.currentTime = audio.duration * seek.value / 100;
+  }
+};
+
+async function searchJamendo(q) {
+  const url = `https://api.jamendo.com/v3.0/tracks/?client_id=${JAMENDO_KEY}&format=json&limit=30&search=${encodeURIComponent(q)}&audioformat=mp32`;
+  const r = await fetch(url);
+  const d = await r.json();
+  return (d.results || []).map(t => ({
+    id: 'j' + t.id,
+    title: t.name,
+    artist: t.artist_name,
+    art: t.album_image || t.image,
+    url: t.audio,
+    source: 'jamendo'
+  }));
+}
+
+async function searchYouTube(q) {
+  const url = `https://www.googleapis.com/youtube/v3/search?part=snippet&type=video&videoCategoryId=10&maxResults=25&q=${encodeURIComponent(q)}&key=${YOUTUBE_KEY}`;
+  const r = await fetch(url);
+  const d = await r.json();
+  if (d.error) throw new Error(d.error.message);
+  return (d.items || []).map(v => ({
+    id: v.id.videoId,
+    title: v.snippet.title,
+    artist: v.snippet.channelTitle,
+    art: v.snippet.thumbnails.default.url,
+    source: 'youtube'
+  }));
+}
+
+async function doSearch() {
+  const q = document.getElementById('searchInput').value.trim();
+  if (!q || mode === 'saved') return;
+  resultsEl.innerHTML = '<div class="msg">Searching... 🔎</div>';
+  try {
+    render(mode === 'youtube' ? await searchYouTube(q) : await searchJamendo(q));
+  } catch (err) {
+    resultsEl.innerHTML = '<div class="msg">Error: ' + err.message + '</div>';
+  }
+}
+
+document.getElementById('searchBtn').onclick = doSearch;
+document.getElementById('searchInput').addEventListener('keypress', e => {
+  if (e.key === 'Enter') doSearch();
+});
+
+document.querySelectorAll('.tab').forEach(tab => {
+  tab.onclick = () => {
+    document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+    tab.classList.add('active');
+    mode = tab.dataset.mode;
+    if (mode === 'saved') render(getSaved());
+    else doSearch();
+  };
+});
+</script>
+
+</body>
+</html>
