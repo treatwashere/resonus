@@ -30,6 +30,31 @@ body {
 
 .logo { font-size: 2rem; font-weight: bold; }
 
+.header-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.changelog-btn {
+  padding: 8px 16px;
+  border: 1px solid rgba(255,255,255,.35);
+  border-radius: 20px;
+  background: rgba(0,0,0,.15);
+  color: #fff;
+  font-weight: 600;
+  font-size: .9rem;
+  text-decoration: none;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: all .2s ease;
+}
+
+.changelog-btn:hover {
+  background: rgba(255,255,255,.2);
+  border-color: rgba(255,255,255,.7);
+}
+
 #authBtn {
   padding: 8px 16px;
   border: 2px solid rgba(255,255,255,.7);
@@ -39,6 +64,7 @@ body {
   font-weight: 600;
   cursor: pointer;
   white-space: nowrap;
+  transition: background .2s;
 }
 
 #authBtn:hover { background: rgba(255,255,255,.2); }
@@ -347,7 +373,10 @@ body {
 <div class="header">
   <div class="logo-row">
     <div class="logo">🎵 Resonus</div>
-    <button id="authBtn">Log in</button>
+    <div class="header-actions">
+      <a href="changelog.html" class="changelog-btn">Changelog</a>
+      <button id="authBtn">Log in</button>
+    </div>
   </div>
   <div class="search-row">
     <input type="text" id="searchInput" placeholder="Search for a song...">
