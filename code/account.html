@@ -262,7 +262,8 @@ function draw() {
 
     '<div class="card"><h2>ACTIONS</h2>' +
       '<button class="btn grey" id="logoutBtn">Log out</button>' +
-      '<button class="btn danger" id="clearBtn">Clear my library</button>' +
+      '<button class="btn grey" id="clearBtn">Clear my library</button>' +
+      '<button class="btn danger" id="deleteBtn">Delete account</button>' +
     '</div>' +
 
     '<div id="msg"></div>';
@@ -270,6 +271,7 @@ function draw() {
   document.getElementById('avatarImg').onclick = () => fileIn.click();
   document.getElementById('logoutBtn').onclick = logout;
   document.getElementById('clearBtn').onclick = clearLibrary;
+  document.getElementById('deleteBtn').onclick = deleteAccount;
 
   wrap.querySelectorAll('[data-link]').forEach(b => {
     b.onclick = () => linkProvider(b.dataset.link);
@@ -351,6 +353,30 @@ async function clearLibrary() {
   });
   say('Library cleared');
   draw();
+}
+
+async function deleteAccount() {
+  const answer = prompt('Type "DELETE" to permanently remove your account and all saved data:');
+  if (answer !== 'DELETE') {
+    if (answer !== null) say('Account deletion canceled');
+    return;
+  }
+
+  say('Deleting account...');
+
+  // 1. Clear local storage saved library data
+  localStorage.removeItem('resonus_saved');
+
+  // 2. Execute SQL RPC function in Supabase
+  const { error } = await sb.rpc('delete_user');
+
+  if (error) {
+    return say('Error: ' + error.message);
+  }
+
+  // 3. Clear session and return to home
+  await sb.auth.signOut();
+  window.location.href = '/';
 }
 
 async function load() {
