@@ -20,7 +20,28 @@ body {
   background: linear-gradient(135deg, #1db954 0%, #1a6fd4 100%);
 }
 
-.logo { font-size: 2rem; font-weight: bold; margin-bottom: 15px; }
+.logo-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 15px;
+  gap: 10px;
+}
+
+.logo { font-size: 2rem; font-weight: bold; }
+
+#authBtn {
+  padding: 8px 16px;
+  border: 2px solid rgba(255,255,255,.7);
+  border-radius: 20px;
+  background: transparent;
+  color: #fff;
+  font-weight: 600;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+#authBtn:hover { background: rgba(255,255,255,.2); }
 
 .search-row { display: flex; gap: 10px; }
 
@@ -126,6 +147,66 @@ body {
 
 .msg { text-align: center; color: #777; padding: 50px 20px; }
 
+/* MODAL */
+.modal {
+  display: none;
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,.75);
+  z-index: 200;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+}
+
+.modal.open { display: flex; }
+
+.modal-box {
+  background: #16161d;
+  border-radius: 14px;
+  padding: 26px;
+  width: 100%;
+  max-width: 360px;
+}
+
+.modal-box h2 { margin-bottom: 6px; }
+
+.modal-sub { color: #888; font-size: .85rem; margin-bottom: 18px; }
+
+.modal-box input {
+  width: 100%;
+  padding: 12px;
+  margin-bottom: 10px;
+  border: 1px solid #2f2f3d;
+  border-radius: 8px;
+  background: #0d0d12;
+  color: #fff;
+  font-size: 1rem;
+}
+
+.modal-box input:focus { outline: none; border-color: #1db954; }
+
+.mbtn {
+  width: 100%;
+  padding: 12px;
+  margin-top: 6px;
+  border: none;
+  border-radius: 8px;
+  font-weight: bold;
+  font-size: 1rem;
+  cursor: pointer;
+}
+
+.mbtn.primary { background: #1db954; color: #fff; }
+.mbtn.ghost { background: #24242e; color: #bbb; }
+
+#authMsg {
+  font-size: .85rem;
+  margin-top: 12px;
+  min-height: 20px;
+  text-align: center;
+}
+
 /* PLAYER BAR */
 .player {
   position: fixed;
@@ -184,7 +265,10 @@ body {
 <body>
 
 <div class="header">
-  <div class="logo">🎵 Resonus</div>
+  <div class="logo-row">
+    <div class="logo">🎵 Resonus</div>
+    <button id="authBtn">Log in</button>
+  </div>
   <div class="search-row">
     <input type="text" id="searchInput" placeholder="Search for a song...">
     <button id="searchBtn">Search</button>
@@ -214,13 +298,30 @@ body {
   </div>
 </div>
 
+<div class="modal" id="authModal">
+  <div class="modal-box">
+    <h2>Welcome to Resonus</h2>
+    <div class="modal-sub">Log in to sync your library across devices ☁️</div>
+    <input type="email" id="emailIn" placeholder="Email" autocomplete="email">
+    <input type="password" id="passIn" placeholder="Password" autocomplete="current-password">
+    <button class="mbtn primary" id="loginBtn">Log in</button>
+    <button class="mbtn ghost" id="signupBtn">Create account</button>
+    <button class="mbtn ghost" id="closeModal">Cancel</button>
+    <div id="authMsg"></div>
+  </div>
+</div>
+
 <div id="ytFrame"></div>
 <audio id="audio"></audio>
 
 <script src="https://www.youtube.com/iframe_api"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script>
 const JAMENDO_KEY = '46e604a8';
 const YOUTUBE_KEY = 'AIzaSyAsn7CJ1lBCW24BwZG32TUJphlBFRqpYlI';
+
+const SUPA_URL = 'https://gmdmpxxgqwcbyxtdwncv.supabase.co';
+const SUPA_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImdtZG1weHhncXdjYnl4dGR3bmN2Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODUzMzA3OTUsImV4cCI6MjEwMDkwNjc5NX0.aRNPYVsOD6LWsU2XlJIkTGBg_PPG6-yuGdYG4jsD5m0';
 
 const audio = document.getElementById('audio');
 const resultsEl = document.getElementById('results');
@@ -274,7 +375,87 @@ function getSaved() {
 
 function setSaved(list) {
   localStorage.setItem('resonus_saved', JSON.stringify(list));
+  pushCloud(list);
 }
+
+/* ---------- AUTH ---------- */
+
+const sb = window.supabase.createClient(SUPA_URL, SUPA_KEY);
+
+const authBtn = document.getElementById('authBtn');
+const authModal = document.getElementById('authModal');
+const authMsg = document.getElementById('authMsg');
+let user = null;
+
+function openModal() { authModal.classList.add('open'); authMsg.textContent = ''; }
+function closeModal() { authModal.classList.remove('open'); }
+
+document.getElementById('closeModal').onclick = closeModal;
+authModal.onclick = e => { if (e.target === authModal) closeModal(); };
+
+authBtn.onclick = async () => {
+  if (user) await sb.auth.signOut();
+  else openModal();
+};
+
+function creds() {
+  return {
+    email: document.getElementById('emailIn').value.trim(),
+    password: document.getElementById('passIn').value
+  };
+}
+
+document.getElementById('loginBtn').onclick = async () => {
+  const { email, password } = creds();
+  if (!email || !password) return authMsg.textContent = 'Fill in both boxes';
+  authMsg.textContent = 'Logging in...';
+  const { error } = await sb.auth.signInWithPassword({ email, password });
+  authMsg.textContent = error ? '❌ ' + error.message : '';
+  if (!error) closeModal();
+};
+
+document.getElementById('signupBtn').onclick = async () => {
+  const { email, password } = creds();
+  if (!email || !password) return authMsg.textContent = 'Fill in both boxes';
+  if (password.length < 6) return authMsg.textContent = 'Password needs 6+ characters';
+  authMsg.textContent = 'Creating account...';
+  const { error } = await sb.auth.signUp({ email, password });
+  authMsg.textContent = error ? '❌ ' + error.message : '✅ Account created!';
+  if (!error) setTimeout(closeModal, 900);
+};
+
+/* ---------- CLOUD SYNC ---------- */
+
+async function pushCloud(list) {
+  if (!user) return;
+  await sb.from('libraries').upsert({
+    user_id: user.id,
+    tracks: list,
+    updated_at: new Date().toISOString()
+  });
+}
+
+async function pullCloud() {
+  if (!user) return;
+  const { data } = await sb.from('libraries').select('tracks').eq('user_id', user.id).maybeSingle();
+  const cloud = (data && data.tracks) || [];
+  const local = getSaved();
+  const merged = [...cloud];
+  local.forEach(t => { if (!merged.some(c => c.id === t.id)) merged.push(t); });
+  localStorage.setItem('resonus_saved', JSON.stringify(merged));
+  await pushCloud(merged);
+  if (mode === 'saved') render(merged, '💾 Your saved tracks');
+}
+
+sb.auth.onAuthStateChange((_e, session) => {
+  user = session ? session.user : null;
+  if (user) {
+    authBtn.textContent = 'Log out';
+    pullCloud();
+  } else {
+    authBtn.textContent = 'Log in';
+  }
+});
 
 /* ---------- RENDER ---------- */
 
@@ -459,9 +640,7 @@ async function searchYouTube(q) {
 }
 
 async function loadRecommendations() {
-  if (YOUTUBE_KEY.startsWith('PUT_YOUR')) {
-    return loadPopularJamendo();
-  }
+  if (YOUTUBE_KEY.startsWith('PUT_YOUR')) return loadPopularJamendo();
   const day = daySeed();
   const seed = REC_SEEDS[day % REC_SEEDS.length];
   resultsEl.innerHTML = '<div class="msg">Loading today\'s picks... 🎲</div>';
