@@ -161,11 +161,15 @@ body {
 .time { font-size: .75rem; color: #888; min-width: 40px; }
 
 #ytFrame {
-  position: fixed;
-  bottom: -400px;
-  width: 1px;
-  height: 1px;
+  display: block;
+  width: 100%;
+  max-width: 500px;
+  margin: 0 auto 20px;
+  aspect-ratio: 16/9;
+  border-radius: 8px;
+  overflow: hidden;
 }
+#ytFrame:empty { display: none; }
 </style>
 </head>
 <body>
