@@ -78,9 +78,30 @@ body {
 
 .who { min-width: 0; }
 
+.who-name {
+  font-weight: 700;
+  font-size: 1.15rem;
+  color: #fff;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  transition: color 0.2s;
+}
+
+.who-name:hover {
+  color: #1db954;
+}
+
+.who-name .edit-icon {
+  font-size: 0.8rem;
+  opacity: 0.6;
+}
+
 .who-email {
-  font-weight: 600;
-  font-size: 1.05rem;
+  font-size: .85rem;
+  color: #aaa;
+  margin-top: 3px;
   word-break: break-all;
 }
 
@@ -216,6 +237,11 @@ function avatarUrl() {
   return m.custom_avatar || m.avatar_url || m.picture || FALLBACK;
 }
 
+function displayName() {
+  const m = user.user_metadata || {};
+  return m.display_name || m.full_name || m.name || (user.email ? user.email.split('@')[0] : 'Music Lover');
+}
+
 function joinedDate() {
   return new Date(user.created_at).toLocaleDateString('en-GB', {
     day: 'numeric', month: 'long', year: 'numeric'
@@ -248,9 +274,12 @@ function draw() {
     '<div class="card"><div class="avatar-row">' +
       '<img class="avatar" id="avatarImg" src="' + avatarUrl() + '" alt="Avatar">' +
       '<div class="who">' +
+        '<div class="who-name" id="nameBtn" title="Click to change display name">' +
+          displayName() + ' <span class="edit-icon">✏️</span>' +
+        '</div>' +
         '<div class="who-email">' + (user.email || 'No email') + '</div>' +
         '<div class="who-sub">Joined ' + joinedDate() + '</div>' +
-        '<div class="avatar-hint">Tap your photo to change it</div>' +
+        '<div class="avatar-hint">Tap photo to edit avatar</div>' +
       '</div></div></div>' +
 
     '<div class="card"><h2>LINKED ACCOUNTS</h2>' + rows + '</div>' +
@@ -269,6 +298,7 @@ function draw() {
     '<div id="msg"></div>';
 
   document.getElementById('avatarImg').onclick = () => fileIn.click();
+  document.getElementById('nameBtn').onclick = changeDisplayName;
   document.getElementById('logoutBtn').onclick = logout;
   document.getElementById('clearBtn').onclick = clearLibrary;
   document.getElementById('deleteBtn').onclick = deleteAccount;
@@ -284,6 +314,29 @@ function draw() {
 function say(text) {
   const m = document.getElementById('msg');
   if (m) m.textContent = text;
+}
+
+async function changeDisplayName() {
+  const currentName = user.user_metadata?.display_name || user.user_metadata?.full_name || '';
+  const newName = prompt('Enter your new display name:', currentName || displayName());
+  
+  if (newName === null) return; // User pressed cancel
+  const trimmed = newName.trim();
+  if (!trimmed) return say('Display name cannot be empty');
+
+  say('Updating display name...');
+
+  const { data, error } = await sb.auth.updateUser({
+    data: { display_name: trimmed }
+  });
+
+  if (error) {
+    return say('Error: ' + error.message);
+  }
+
+  user = data.user;
+  say('Display name updated!');
+  draw();
 }
 
 async function linkProvider(provider) {
@@ -364,17 +417,14 @@ async function deleteAccount() {
 
   say('Deleting account...');
 
-  // 1. Clear local storage saved library data
   localStorage.removeItem('resonus_saved');
 
-  // 2. Execute SQL RPC function in Supabase
   const { error } = await sb.rpc('delete_user');
 
   if (error) {
     return say('Error: ' + error.message);
   }
 
-  // 3. Clear session and return to home
   await sb.auth.signOut();
   window.location.href = '/';
 }
