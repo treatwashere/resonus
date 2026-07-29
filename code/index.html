@@ -537,8 +537,8 @@ document.getElementById('closeModal').onclick = closeModal;
 authModal.onclick = e => { if (e.target === authModal) closeModal(); };
 document.getElementById('switchBtn').onclick = () => setMode(!signupMode);
 
-authBtn.onclick = async () => {
-  if (user) await sb.auth.signOut();
+authBtn.onclick = () => {
+  if (user) window.location.href = '/account.html';
   else openModal();
 };
 
@@ -600,7 +600,7 @@ async function pullCloud() {
 sb.auth.onAuthStateChange((_e, session) => {
   user = session ? session.user : null;
   if (user) {
-    authBtn.textContent = 'Log out';
+    authBtn.textContent = '👤 Account';
     closeModal();
     pullCloud();
   } else {
