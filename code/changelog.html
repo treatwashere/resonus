@@ -1,1 +1,309 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Changelog - Resonus</title>
+<style>
+* { margin:0; padding:0; box-sizing:border-box; }
 
+body {
+  font-family: 'Segoe UI', system-ui, sans-serif;
+  background: #0d0d12;
+  color: #fff;
+  min-height: 100vh;
+}
+
+.header {
+  padding: 20px;
+  background: linear-gradient(135deg, #1db954 0%, #1a6fd4 100%);
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
+.back {
+  background: rgba(255,255,255,.2);
+  border: none;
+  color: #fff;
+  font-size: 1.2rem;
+  padding: 8px 14px;
+  border-radius: 20px;
+  cursor: pointer;
+}
+
+.back:hover { background: rgba(255,255,255,.35); }
+
+.header h1 { font-size: 1.4rem; }
+
+.wrap { max-width: 580px; margin: 0 auto; padding: 24px 20px 60px; }
+
+/* Tabs Bar */
+.tabs {
+  display: flex;
+  gap: 8px;
+  background: #16161d;
+  padding: 6px;
+  border-radius: 12px;
+  border: 1px solid #24242e;
+  margin-bottom: 20px;
+}
+
+.tab-btn {
+  flex: 1;
+  padding: 10px;
+  border: none;
+  border-radius: 8px;
+  background: transparent;
+  color: #888;
+  font-weight: 700;
+  font-size: .92rem;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.tab-btn:hover { color: #fff; }
+
+.tab-btn.active {
+  background: #1db954;
+  color: #fff;
+}
+
+/* Content Cards */
+.card {
+  background: #16161d;
+  border: 1px solid #24242e;
+  border-radius: 14px;
+  padding: 20px;
+  margin-bottom: 16px;
+}
+
+.release-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 12px;
+  margin-bottom: 6px;
+}
+
+.release-title {
+  font-size: 1.1rem;
+  font-weight: 700;
+  color: #fff;
+}
+
+.tag-badge {
+  background: rgba(29, 185, 84, 0.15);
+  color: #4ade80;
+  border: 1px solid rgba(74, 222, 128, 0.25);
+  padding: 4px 10px;
+  border-radius: 12px;
+  font-size: .78rem;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.date {
+  font-size: .8rem;
+  color: #777;
+  margin-bottom: 12px;
+}
+
+.body-text {
+  font-size: .9rem;
+  color: #ccc;
+  line-height: 1.5;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+/* Commits List */
+.commit-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 12px 0;
+  border-bottom: 1px solid #22222c;
+}
+
+.commit-item:last-child { border-bottom: none; }
+
+.commit-msg {
+  font-weight: 600;
+  font-size: .92rem;
+  color: #eee;
+  margin-bottom: 3px;
+  word-break: break-word;
+}
+
+.commit-meta {
+  font-size: .78rem;
+  color: #777;
+}
+
+.sha-badge {
+  background: #24242e;
+  color: #1db954;
+  padding: 5px 9px;
+  border-radius: 8px;
+  font-family: monospace;
+  font-size: .8rem;
+  font-weight: 700;
+  text-decoration: none;
+  transition: background 0.2s;
+  flex-shrink: 0;
+}
+
+.sha-badge:hover { background: #30303c; }
+
+.view-link {
+  display: inline-block;
+  margin-top: 12px;
+  color: #1db954;
+  text-decoration: none;
+  font-size: .85rem;
+  font-weight: 700;
+}
+
+.view-link:hover { text-decoration: underline; }
+
+.loading, .empty {
+  text-align: center;
+  color: #777;
+  padding: 60px 20px;
+  font-size: .95rem;
+}
+</style>
+</head>
+<body>
+
+<div class="header">
+  <button class="back" onclick="window.location.href='/'">←</button>
+  <h1>Changelog</h1>
+</div>
+
+<div class="wrap">
+  <!-- Tab Switches -->
+  <div class="tabs">
+    <button class="tab-btn active" id="tabReleases">Releases</button>
+    <button class="tab-btn" id="tabCommits">Commits</button>
+  </div>
+
+  <!-- Dynamic Content -->
+  <div id="content"></div>
+</div>
+
+<script>
+const REPO_OWNER = 'treatwashere';
+const REPO_NAME = 'resonus';
+
+let activeTab = 'releases';
+const cache = { releases: null, commits: null };
+
+function formatDate(dateStr) {
+  return new Date(dateStr).toLocaleDateString('en-GB', {
+    day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit'
+  });
+}
+
+function escapeHtml(str) {
+  return (str || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+}
+
+async function fetchReleases() {
+  if (cache.releases) return cache.releases;
+  const res = await fetch(`https://api.github.com/repos/${REPO_OWNER}/${REPO_NAME}/releases`);
+  if (!res.ok) throw new Error('Could not load releases');
+  const data = await res.json();
+  cache.releases = data;
+  return data;
+}
+
+async function fetchCommits() {
+  if (cache.commits) return cache.commits;
+  const res = await fetch(`https://api.github.com/repos/${REPO_OWNER}/${REPO_NAME}/commits?per_page=30`);
+  if (!res.ok) throw new Error('Could not load commits');
+  const data = await res.json();
+  cache.commits = data;
+  return data;
+}
+
+async function render() {
+  const container = document.getElementById('content');
+  container.innerHTML = `<div class="loading">Fetching ${activeTab}... 🔄</div>`;
+
+  try {
+    if (activeTab === 'releases') {
+      const releases = await fetchReleases();
+
+      if (!releases || releases.length === 0) {
+        container.innerHTML = `
+          <div class="card empty">
+            No official releases published yet.<br>
+            Check the <strong>Commits</strong> tab to see recent updates!
+          </div>`;
+        return;
+      }
+
+      container.innerHTML = releases.map(r => `
+        <div class="card">
+          <div class="release-header">
+            <div class="release-title">${escapeHtml(r.name || r.tag_name)}</div>
+            <span class="tag-badge">${escapeHtml(r.tag_name)}</span>
+          </div>
+          <div class="date">Published ${formatDate(r.published_at)}</div>
+          <div class="body-text">${escapeHtml(r.body || 'No release notes provided.')}</div>
+          <div>
+            <a href="${r.html_url}" target="_blank" class="view-link">View release on GitHub ↗</a>
+          </div>
+        </div>
+      `).join('');
+
+    } else {
+      const commits = await fetchCommits();
+
+      if (!commits || commits.length === 0) {
+        container.innerHTML = `<div class="card empty">No commits found in repository.</div>`;
+        return;
+      }
+
+      const rows = commits.map(c => {
+        const msg = c.commit.message.split('\n')[0]; // Get title line of commit
+        const author = c.commit.author ? c.commit.author.name : 'Contributor';
+        const date = formatDate(c.commit.author.date);
+        const shortSha = c.sha.substring(0, 7);
+
+        return `
+          <div class="commit-item">
+            <div style="min-width:0; flex:1;">
+              <div class="commit-msg">${escapeHtml(msg)}</div>
+              <div class="commit-meta">${escapeHtml(author)} • ${date}</div>
+            </div>
+            <a href="${c.html_url}" target="_blank" class="sha-badge" title="View commit on GitHub">${shortSha}</a>
+          </div>`;
+      }).join('');
+
+      container.innerHTML = `<div class="card">${rows}</div>`;
+    }
+  } catch (err) {
+    container.innerHTML = `<div class="card empty" style="color:#ff7b7b;">Error: ${escapeHtml(err.message)}</div>`;
+  }
+}
+
+function setTab(tab) {
+  activeTab = tab;
+  document.getElementById('tabReleases').classList.toggle('active', tab === 'releases');
+  document.getElementById('tabCommits').classList.toggle('active', tab === 'commits');
+  render();
+}
+
+document.getElementById('tabReleases').onclick = () => setTab('releases');
+document.getElementById('tabCommits').onclick = () => setTab('commits');
+
+// Initial Load
+setTab('releases');
+</script>
+
+</body>
+</html>
