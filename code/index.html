@@ -28,7 +28,19 @@ body {
   gap: 10px;
 }
 
-.logo { font-size: 2rem; font-weight: bold; }
+.logo {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 2rem;
+  font-weight: bold;
+}
+
+.logo-img {
+  height: 38px;
+  width: auto;
+  object-fit: contain;
+}
 
 .header-actions {
   display: flex;
@@ -372,7 +384,10 @@ body {
 
 <div class="header">
   <div class="logo-row">
-    <div class="logo">🎵 Resonus</div>
+    <div class="logo">
+      <img src="Resonus.png" alt="Resonus Logo" class="logo-img">
+      <span>Resonus</span>
+    </div>
     <div class="header-actions">
       <a href="changelog.html" class="changelog-btn">Changelog</a>
       <button id="authBtn">Log in</button>
