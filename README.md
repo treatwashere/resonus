@@ -4,6 +4,8 @@ A free, browser-based music player for discovering and streaming tracks and inte
 
 🔗 [**Live site**](https://resonus-five.vercel.app)
 
+If the page says "Nothing found 🤔," then press on "Jamendo" and keep pressing it until it shows up or you can refresh the page.
+
 ## Features
 
 - 🔍 **Search & discover** — search for songs and browse recommendations pulled from the Jamendo catalog.
