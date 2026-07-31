@@ -2,7 +2,7 @@
 
 A free, browser-based music player for discovering and streaming tracks and internet radio — no installs, no downloads.
 
-🔗 **Live site:** [resonus-five.vercel.app](https://resonus-five.vercel.app)
+🔗 [**Live site**](https://resonus-five.vercel.app)
 
 ## Features
 
